@@ -1,0 +1,59 @@
+service: backoffice-export-administrator
+frameworkVersion: '3'
+provider:
+  name: aws
+  versionFunctions: false
+  runtime: nodejs12.x
+  apiGateway:
+    shouldStartNameWithService: true
+  stage: dev
+  region: us-east-1
+  iam:
+    role:
+      statements:
+        - Effect: "Allow"
+          Action:
+            - 'secretsmanager:GetSecretValue'
+          Resource:
+            - 'arn:aws:secretsmanager:us-east-1::secret:qa/flowmanagement/core-qiwZwc'
+        - Effect: "Allow"
+          Action:
+            - "s3.js:PutObject"
+            - "s3.js:GetObject"
+          Resource:
+            - 'arn:aws:s3.js:::genericpoctesting'
+        - Effect: Allow
+          Action:
+            - 'sqs:ReceiveMessage'
+          #            - "sqs:DeleteMessage"
+          #            - "sqs:GetQueueAttributes"
+          Resource:
+            - 'arn:aws:sqs:us-east-1::qas-flow-export'
+        - Effect: Allow
+          Action:
+            - 'dynamodb:UpdateItem'
+            - 'dynamodb:Query'
+            - 'dynamodb:Scan'
+            - 'dynamodb:PutItem'
+          Resource:
+            - 'arn:aws:dynamodb:us-east-1::table/export_request_metadata'
+functions:
+  export-listener:
+    handler: functions/export-listener/app.handler
+    events:
+      - sqs:
+          arn: 'arn:aws:sqs:us-east-1::qas-flow-export'
+          batchSize: 10
+custom:
+  serverless-offline-sqs:
+    autoCreate: false
+    apiVersion: '2012-11-05'
+    endpoint: https://sqs.us-east-1.amazonaws.com/694703166382/qas-flow-export
+    region: us-east-1
+    profiles:
+      - offline
+    skipCacheInvalidation: false
+plugins:
+  - serverless-plugin-reducer
+  - serverless-offline-sqs
+  - serverless-offline
